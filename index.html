@@ -218,7 +218,6 @@ function paintBlit(i,alive){
 function flushMap(){if(img&&mapDirty){mapCtx.putImageData(img,0,0);mapDirty=false;}}
 const state=new Uint8Array(CELLS);
 
-/* NEW: fade state */
 const consumedAt=new Float32Array(CELLS);
 const FADE_MS=900;
 
@@ -296,11 +295,6 @@ function consumeCells(from,to){
     if(buf32){buf32[i]=WHT;mapDirty=true;}
     else paintBlit(i,false);
   }
-  if(from>to){
-    const lastIdx=from-1;
-    const c=lastIdx%side,r=(lastIdx/side)|0;
-    ripples.push({x:w2sX(c+0.5),y:w2sY(r+0.5),t:now,world:true,wx:c+0.5,wy:r+0.5});
-  }
   if(buf32&&mapDirty&&mapFlushed)flushMap();
 }
 function fmtClock(r){
@@ -338,7 +332,6 @@ function finale(){
 }
 $('#btnRe').addEventListener('click',()=>location.reload());
 
-const ripples=[];
 const w2sX=wx=>(wx-cam.x)*cam.s+vw/2, w2sY=wy=>(wy-cam.y)*cam.s+vh/2;
 const s2wX=sx=>(sx-vw/2)/cam.s+cam.x, s2wY=sy=>(sy-vh/2)/cam.s+cam.y;
 let lastZoomTxt='';
@@ -373,7 +366,6 @@ function frame(now){
     drawFrontier(now);
     drawHover();
   }
-  drawRipples(now);
   const zt=`CELL ${cam.s<10?cam.s.toFixed(1):Math.round(cam.s)}PX — ${nf.format(Math.round(cam.s/fitScale()*100))}%`;
   if(zt!==lastZoomTxt){zoomStat.textContent=zt;lastZoomTxt=zt;}
 }
@@ -441,16 +433,6 @@ function drawHover(){
   const c=hoverI%side,r=(hoverI/side)|0;
   ctx.strokeStyle='#e10600';ctx.lineWidth=2;
   ctx.strokeRect(w2sX(c)-1,w2sY(r)-1,cam.s+2,cam.s+2);
-}
-function drawRipples(now){
-  for(let i=ripples.length-1;i>=0;i--){
-    const rp=ripples[i],p=(now-rp.t)/650;
-    if(p>=1){ripples.splice(i,1);continue;}
-    if(rp.world){rp.x=w2sX(rp.wx);rp.y=w2sY(rp.wy);}
-    const sz=18+p*70;
-    ctx.strokeStyle=`rgba(225,6,0,${(1-p)*.8})`;ctx.lineWidth=2;
-    ctx.strokeRect(rp.x-sz/2,rp.y-sz/2,sz,sz);
-  }
 }
 
 function buildTip(i){
@@ -523,7 +505,6 @@ function handleClick(e){
   if(cam.s<6)return;
   const c=Math.floor(s2wX(e.clientX)),r=Math.floor(s2wY(e.clientY));
   if(c<0||c>=side||r<0||r>=side)return;
-  ripples.push({x:e.clientX,y:e.clientY,t:performance.now()});
   const i=r*side+c;
   try{navigator.clipboard&&navigator.clipboard.writeText(`second №${i+1} — ${fmtMoment(new Date(TARGET.getTime()-i*1000))}`);}catch(_){}
 }

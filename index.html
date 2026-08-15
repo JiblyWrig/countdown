@@ -218,10 +218,9 @@ function paintBlit(i,alive){
 function flushMap(){if(img&&mapDirty){mapCtx.putImageData(img,0,0);mapDirty=false;}}
 const state=new Uint8Array(CELLS);
 
-/* NEW: fade + outline state */
+/* NEW: fade state */
 const consumedAt=new Float32Array(CELLS);
 const FADE_MS=900;
-let outlineFlash=0;
 
 const loadT0=performance.now();
 function logLine(txt,cls){
@@ -301,7 +300,6 @@ function consumeCells(from,to){
     const lastIdx=from-1;
     const c=lastIdx%side,r=(lastIdx/side)|0;
     ripples.push({x:w2sX(c+0.5),y:w2sY(r+0.5),t:now,world:true,wx:c+0.5,wy:r+0.5});
-    outlineFlash=1;
   }
   if(buf32&&mapDirty&&mapFlushed)flushMap();
 }
@@ -374,7 +372,6 @@ function frame(now){
     else drawNear();
     drawFrontier(now);
     drawHover();
-    drawShrinkingOutline(now);
   }
   drawRipples(now);
   const zt=`CELL ${cam.s<10?cam.s.toFixed(1):Math.round(cam.s)}PX — ${nf.format(Math.round(cam.s/fitScale()*100))}%`;
@@ -423,35 +420,6 @@ function drawNear(){
         }
       }
     }}
-}
-
-function drawShrinkingOutline(now){
-  if(remaining<=0)return;
-  outlineFlash=Math.max(0,outlineFlash-0.035);
-  const fullRows=Math.floor(remaining/side);
-  const partialCols=remaining%side;
-  const alpha=0.35+outlineFlash*0.55;
-  const lw=1+outlineFlash*2.5;
-  ctx.save();
-  ctx.strokeStyle=`rgba(225,6,0,${alpha.toFixed(3)})`;
-  ctx.lineWidth=lw;
-  ctx.setLineDash([5,5]);
-  if(partialCols===0){
-    if(fullRows>0)ctx.strokeRect(w2sX(0),w2sY(0),side*cam.s,fullRows*cam.s);
-  }else if(fullRows===0){
-    ctx.strokeRect(w2sX(0),w2sY(0),partialCols*cam.s,cam.s);
-  }else{
-    ctx.beginPath();
-    ctx.moveTo(w2sX(0),w2sY(0));
-    ctx.lineTo(w2sX(side),w2sY(0));
-    ctx.lineTo(w2sX(side),w2sY(fullRows));
-    ctx.lineTo(w2sX(partialCols),w2sY(fullRows));
-    ctx.lineTo(w2sX(partialCols),w2sY(fullRows+1));
-    ctx.lineTo(w2sX(0),w2sY(fullRows+1));
-    ctx.closePath();
-    ctx.stroke();
-  }
-  ctx.restore();
 }
 
 function drawFrontier(now){

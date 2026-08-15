@@ -20,7 +20,6 @@ body.dragging #cv{cursor:grabbing}
 body.idle #cv{cursor:none}
 #grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.045;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-/* ---------- HUD ---------- */
 .hud{position:fixed;z-index:20;pointer-events:none;transition:opacity .8s ease}
 body.idle .hud{opacity:.05}
 body.fin10 .hud,body.finished .hud{opacity:0;visibility:hidden;transition:opacity .5s ease,visibility 0s .5s}
@@ -41,12 +40,10 @@ body.fin10 .hud,body.finished .hud{opacity:0;visibility:hidden;transition:opacit
 .btns button:active{transform:translateY(0)}
 .hint{font-size:8.5px;letter-spacing:.18em;color:var(--grey)}
 
-/* ---------- tooltip ---------- */
 #tip{position:fixed;z-index:45;background:#fff;border:1px solid var(--ink);box-shadow:5px 5px 0 var(--ink);padding:9px 12px;font-size:10px;letter-spacing:.08em;line-height:2;pointer-events:none;display:none;white-space:nowrap}
 #tip .rd{color:var(--red);font-weight:700}
 #tip .dim{color:var(--grey)}
 
-/* ---------- loader ---------- */
 #loader{position:fixed;inset:0;background:#fff;z-index:100;display:flex;flex-direction:column;justify-content:space-between;padding:clamp(20px,4vw,46px);transition:transform .8s cubic-bezier(.75,0,.2,1)}
 #loader.done{transform:translateY(-101%)}
 .ld-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
@@ -66,7 +63,6 @@ body.fin10 .hud,body.finished .hud{opacity:0;visibility:hidden;transition:opacit
 #ldFill::after{content:'';position:absolute;right:-2px;top:-3px;width:3px;height:9px;background:var(--red)}
 .ld-foot{display:flex;justify-content:space-between;gap:12px;font-size:9.5px;letter-spacing:.16em;color:var(--grey);font-variant-numeric:tabular-nums}
 
-/* ---------- final ten seconds ---------- */
 #finalWrap{position:fixed;inset:0;z-index:70;display:none;place-items:center;background:radial-gradient(circle at 50% 50%,#fff 0%,rgba(255,255,255,.94) 62%)}
 body.fin10 #finalWrap{display:grid}
 .final-inner{display:grid;place-items:center;gap:3.5vh}
@@ -76,7 +72,6 @@ body.fin10 #finalWrap{display:grid}
 @keyframes numFlash{0%{color:var(--red);transform:scale(1.06)}100%{color:var(--ink);transform:scale(1)}}
 .finalLbl{font-size:9.5px;letter-spacing:.34em;color:var(--grey)}
 
-/* ---------- finale ---------- */
 #done{position:fixed;inset:0;z-index:90;background:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:2.4vh;text-align:center;padding:24px}
 body.finished #done{display:flex}
 body.finished #cv,body.finished #finalWrap,body.finished #grain{display:none}
@@ -178,7 +173,6 @@ const pad=n=>String(n).padStart(2,'0');
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ---------- target: Aug 27, 21:00 local (rolls to next year if passed) ---------- */
 const now0=new Date();
 let TARGET=new Date(now0.getFullYear(),7,27,21,0,0,0);
 if(TARGET<=now0)TARGET=new Date(now0.getFullYear()+1,7,27,21,0,0,0);
@@ -189,7 +183,6 @@ let remaining=totalSeconds;
 let remainingShown=-1;
 let finalMode=false,ended=false;
 
-/* ---------- dom / canvas ---------- */
 const cv=$('#cv'),ctx=cv.getContext('2d');
 const loader=$('#loader'),ldLog=$('#ldLog'),ldPct=$('#ldPct'),ldFill=$('#ldFill'),
       ldCells=$('#ldCells'),ldGrid=$('#ldGrid'),clockEl=$('#clock'),gridStat=$('#gridStat'),
@@ -208,10 +201,9 @@ function resize(){
 }
 resize();addEventListener('resize',()=>{resize();clampCam();});
 
-/* ---------- block-field texture (the map) ---------- */
 const map=document.createElement('canvas'),mapCtx=map.getContext('2d');
 let img=null,buf32=null,mapDirty=false,mapMs=1,mapFlushed=false;
-const BLK=0xFF0A0A0A,WHT=0xFFFFFFFF; // little-endian ABGR
+const BLK=0xFF0A0A0A,WHT=0xFFFFFFFF;
 function setupMap(){
   if(side<=4096){map.width=side;map.height=side;img=mapCtx.createImageData(side,side);
     buf32=new Uint32Array(img.data.buffer);buf32.fill(WHT);}
@@ -224,9 +216,13 @@ function paintBlit(i,alive){
   else{mapCtx.clearRect(x,y,s,s);mapCtx.fillStyle='#fff';mapCtx.fillRect(x,y,s,s);mapCtx.fillStyle='#0a0a0a';}
 }
 function flushMap(){if(img&&mapDirty){mapCtx.putImageData(img,0,0);mapDirty=false;}}
-const state=new Uint8Array(CELLS); // 1 alive · 0 consumed/void
+const state=new Uint8Array(CELLS);
 
-/* ---------- generation (runs behind the loading screen) ---------- */
+/* NEW: fade + outline state */
+const consumedAt=new Float32Array(CELLS);
+const FADE_MS=900;
+let outlineFlash=0;
+
 const loadT0=performance.now();
 function logLine(txt,cls){
   const d=document.createElement('div');if(cls)d.className=cls;d.textContent=txt;ldLog.appendChild(d);
@@ -252,7 +248,6 @@ function genStep(){
     const wait=Math.max(0,1200-(performance.now()-loadT0));setTimeout(reveal,wait);}
 }
 
-/* ---------- camera ---------- */
 const cam={x:0,y:0,s:1};
 let intro=null,tween=null,autoZoomOn=false,lastInteract=0;
 const fitScale=()=>Math.min(vw,vh)*0.62/side;
@@ -273,7 +268,6 @@ function tweenTo(x,y,s,dur){
   tween={x0:cam.x,y0:cam.y,s0:cam.s,x,y,s,t0:performance.now(),dur:dur||600};
 }
 
-/* ---------- reveal + intro flight ---------- */
 function reveal(){
   flushMap();mapFlushed=true;
   loader.classList.add('done');
@@ -289,7 +283,6 @@ function reveal(){
   tickTimer=setInterval(checkTick,120);
 }
 
-/* ---------- tick engine ---------- */
 let tickTimer=null;
 function checkTick(){
   if(ended)return;
@@ -297,8 +290,19 @@ function checkTick(){
   if(r!==remaining){const prev=remaining;remaining=r;consumeCells(prev,r);onSecond();}
 }
 function consumeCells(from,to){
-  for(let i=to;i<from;i++){state[i]=0;
-    if(buf32){buf32[i]=WHT;mapDirty=true;}else paintBlit(i,false);}
+  const now=performance.now();
+  for(let i=to;i<from;i++){
+    state[i]=0;
+    consumedAt[i]=now;
+    if(buf32){buf32[i]=WHT;mapDirty=true;}
+    else paintBlit(i,false);
+  }
+  if(from>to){
+    const lastIdx=from-1;
+    const c=lastIdx%side,r=(lastIdx/side)|0;
+    ripples.push({x:w2sX(c+0.5),y:w2sY(r+0.5),t:now,world:true,wx:c+0.5,wy:r+0.5});
+    outlineFlash=1;
+  }
   if(buf32&&mapDirty&&mapFlushed)flushMap();
 }
 function fmtClock(r){
@@ -315,6 +319,7 @@ function fmtMoment(d){
 function onSecond(){
   if(remaining<=0&&!ended){ended=true;finale();return;}
   document.title=`▣ T−${fmtShort(remaining)}`;
+  gridStat.textContent=`${nf.format(remaining)} / ${nf.format(totalSeconds)} REMAINING`;
   if(remaining<=10){
     if(!finalMode){finalMode=true;document.body.classList.add('fin10');}
     finalNum.textContent=remaining;
@@ -335,7 +340,6 @@ function finale(){
 }
 $('#btnRe').addEventListener('click',()=>location.reload());
 
-/* ---------- render ---------- */
 const ripples=[];
 const w2sX=wx=>(wx-cam.x)*cam.s+vw/2, w2sY=wy=>(wy-cam.y)*cam.s+vh/2;
 const s2wX=sx=>(sx-vw/2)/cam.s+cam.x, s2wY=sy=>(sy-vh/2)/cam.s+cam.y;
@@ -360,7 +364,6 @@ function frame(now){
     const f=frontier(),ts=Math.min(vw,vh)/14,k=.07;
     cam.x+=(f.x-cam.x)*k;cam.y+=(f.y-cam.y)*k;cam.s+=(ts-cam.s)*k;
   }
-  // idle fade
   if(now-lastAct>3400&&!document.body.classList.contains('idle')&&!finalMode)
     document.body.classList.add('idle');
 
@@ -371,6 +374,7 @@ function frame(now){
     else drawNear();
     drawFrontier(now);
     drawHover();
+    drawShrinkingOutline(now);
   }
   drawRipples(now);
   const zt=`CELL ${cam.s<10?cam.s.toFixed(1):Math.round(cam.s)}PX — ${nf.format(Math.round(cam.s/fitScale()*100))}%`;
@@ -398,13 +402,58 @@ function drawNear(){
   const c0=Math.max(0,Math.floor(s2wX(0))),c1=Math.min(side-1,Math.ceil(s2wX(vw))),
         r0=Math.max(0,Math.floor(s2wY(0))),r1=Math.min(side-1,Math.ceil(s2wY(vh)));
   if(c1<c0||r1<r0)return;
-  const g=Math.max(1,cam.s*.1),ig=g/2,cs=cam.s-g,p=new Path2D();
+  const g=Math.max(1,cam.s*.1),ig=g/2,cs=cam.s-g;
+  const now=performance.now();
+  const p=new Path2D();
   for(let r=r0;r<=r1;r++){let i=r*side+c0;
     for(let c=c0;c<=c1;c++,i++){
       if(state[i])p.rect(w2sX(c)+ig,w2sY(r)+ig,cs,cs);
     }}
   ctx.fillStyle='#0a0a0a';ctx.fill(p);
+
+  for(let r=r0;r<=r1;r++){let i=r*side+c0;
+    for(let c=c0;c<=c1;c++,i++){
+      const ct=consumedAt[i];
+      if(ct>0&&!state[i]){
+        const age=now-ct;
+        if(age<FADE_MS){
+          const alpha=1-age/FADE_MS;
+          ctx.fillStyle=`rgba(10,10,10,${alpha.toFixed(3)})`;
+          ctx.fillRect(w2sX(c)+ig,w2sY(r)+ig,cs,cs);
+        }
+      }
+    }}
 }
+
+function drawShrinkingOutline(now){
+  if(remaining<=0)return;
+  outlineFlash=Math.max(0,outlineFlash-0.035);
+  const fullRows=Math.floor(remaining/side);
+  const partialCols=remaining%side;
+  const alpha=0.35+outlineFlash*0.55;
+  const lw=1+outlineFlash*2.5;
+  ctx.save();
+  ctx.strokeStyle=`rgba(225,6,0,${alpha.toFixed(3)})`;
+  ctx.lineWidth=lw;
+  ctx.setLineDash([5,5]);
+  if(partialCols===0){
+    if(fullRows>0)ctx.strokeRect(w2sX(0),w2sY(0),side*cam.s,fullRows*cam.s);
+  }else if(fullRows===0){
+    ctx.strokeRect(w2sX(0),w2sY(0),partialCols*cam.s,cam.s);
+  }else{
+    ctx.beginPath();
+    ctx.moveTo(w2sX(0),w2sY(0));
+    ctx.lineTo(w2sX(side),w2sY(0));
+    ctx.lineTo(w2sX(side),w2sY(fullRows));
+    ctx.lineTo(w2sX(partialCols),w2sY(fullRows));
+    ctx.lineTo(w2sX(partialCols),w2sY(fullRows+1));
+    ctx.lineTo(w2sX(0),w2sY(fullRows+1));
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawFrontier(now){
   const i=remaining-1;if(i<0)return;
   const c=i%side,r=(i/side)|0,x=w2sX(c),y=w2sY(r),s=cam.s;
@@ -429,13 +478,13 @@ function drawRipples(now){
   for(let i=ripples.length-1;i>=0;i--){
     const rp=ripples[i],p=(now-rp.t)/650;
     if(p>=1){ripples.splice(i,1);continue;}
+    if(rp.world){rp.x=w2sX(rp.wx);rp.y=w2sY(rp.wy);}
     const sz=18+p*70;
     ctx.strokeStyle=`rgba(225,6,0,${(1-p)*.8})`;ctx.lineWidth=2;
     ctx.strokeRect(rp.x-sz/2,rp.y-sz/2,sz,sz);
   }
 }
 
-/* ---------- tooltip ---------- */
 function buildTip(i){
   const alive=state[i]===1;
   const moment=new Date(TARGET.getTime()-i*1000);
@@ -452,7 +501,6 @@ function placeTip(px,py){
   tip.style.top =Math.min(py+18,vh-h-12)+'px';
 }
 
-/* ---------- interaction ---------- */
 let lastAct=performance.now();
 const pts=new Map();let drag=null,pinch=null;
 function poke(){lastInteract=performance.now();lastAct=lastInteract;
@@ -484,7 +532,6 @@ cv.addEventListener('pointermove',e=>{
     if(drag.moved>3){cam.x-=dx/cam.s;cam.y-=dy/cam.s;clampCam();hoverI=-1;tip.style.display='none';}
     drag.x=e.clientX;drag.y=e.clientY;return;
   }
-  // hover
   if(cam.s>=6&&!document.body.classList.contains('idle')){
     const wx=s2wX(e.clientX),wy=s2wY(e.clientY),c=Math.floor(wx),r=Math.floor(wy);
     if(c>=0&&c<side&&r>=0&&r<side){const i=r*side+c;hoverI=i;buildTip(i);placeTip(e.clientX,e.clientY);}
@@ -533,7 +580,6 @@ $('#btnIn').addEventListener('click',()=>{poke();zoomAt(vw/2,vh/2,1.5);});
 $('#btnOut').addEventListener('click',()=>{poke();zoomAt(vw/2,vh/2,1/1.5);});
 $('#btnFit').addEventListener('click',()=>{poke();tweenTo(side/2,side/2,fitScale(),600);});
 
-/* ---------- boot ---------- */
 setupMap();
 requestAnimationFrame(genStep);
 })();

@@ -364,7 +364,6 @@ function frame(now){
     if(cam.s<6){drawMapFar();if(cam.s>=1.35)drawFarGrid();}
     else drawNear();
     drawFrontier(now);
-    drawHover();
   }
   const zt=`CELL ${cam.s<10?cam.s.toFixed(1):Math.round(cam.s)}PX — ${nf.format(Math.round(cam.s/fitScale()*100))}%`;
   if(zt!==lastZoomTxt){zoomStat.textContent=zt;lastZoomTxt=zt;}
@@ -428,12 +427,6 @@ function drawFrontier(now){
   }
 }
 let hoverI=-1;
-function drawHover(){
-  if(hoverI<0||cam.s<6)return;
-  const c=hoverI%side,r=(hoverI/side)|0;
-  ctx.strokeStyle='#e10600';ctx.lineWidth=2;
-  ctx.strokeRect(w2sX(c)-1,w2sY(r)-1,cam.s+2,cam.s+2);
-}
 
 function buildTip(i){
   const alive=state[i]===1;
